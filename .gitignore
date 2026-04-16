@@ -1,0 +1,14 @@
+# Artefactos de compilacion de ESP-IDF
+build/
+managed_components/
+sdkconfig.old
+
+# Python
+__pycache__/
+*.pyc
+
+# Editores y sistema
+.cache/
+*.swp
+Thumbs.db
+desktop.ini
