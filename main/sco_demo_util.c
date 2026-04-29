@@ -348,16 +348,10 @@ void sco_demo_send(hci_con_handle_t sco_handle)
 
             if (audio_input_paused)
             {
-                uint32_t avail = btstack_ring_buffer_bytes_available(&audio_input_ring_buffer);
-                if (avail >= MSBC_PA_PREBUFFER_BYTES)
+                if (btstack_ring_buffer_bytes_available(&audio_input_ring_buffer) >= MSBC_PA_PREBUFFER_BYTES)
                 {
-                    printf("SCO mSBC input resumed, ring_buf=%u\n", (unsigned)avail);
                     // resume sending
                     audio_input_paused = 0;
-                } else {
-                    static int log_once = 0;
-                    if (log_once++ % 200 == 0)
-                        printf("SCO mSBC input paused, ring_buf=%u need=%u\n", (unsigned)avail, MSBC_PA_PREBUFFER_BYTES);
                 }
             }
 
@@ -399,16 +393,10 @@ void sco_demo_send(hci_con_handle_t sco_handle)
             int bytes_to_copy = sco_payload_length;
             if (audio_input_paused)
             {
-                uint32_t avail = btstack_ring_buffer_bytes_available(&audio_input_ring_buffer);
-                if (avail >= CVSD_PA_PREBUFFER_BYTES)
+                if (btstack_ring_buffer_bytes_available(&audio_input_ring_buffer) >= CVSD_PA_PREBUFFER_BYTES)
                 {
-                    printf("SCO CVSD input resumed, ring_buf=%u\n", (unsigned)avail);
                     // resume sending
                     audio_input_paused = 0;
-                } else {
-                    static int log_once_cvsd = 0;
-                    if (log_once_cvsd++ % 200 == 0)
-                        printf("SCO CVSD input paused, ring_buf=%u need=%u\n", (unsigned)avail, CVSD_PA_PREBUFFER_BYTES);
                 }
             }
 

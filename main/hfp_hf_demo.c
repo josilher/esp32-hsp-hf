@@ -20,11 +20,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include "btstack.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 
 #include "sco_demo_util.h"
+#include "cat_bridge.h"
 
 uint8_t hfp_service_buffer[150];
 const uint8_t rfcomm_channel_nr = 1;
+
+// SPP (CAT bridge) — RFCOMM channel 2
+#define SPP_RFCOMM_CHANNEL  2
+#define CAT_QUEUE_LEN       8
+#define CAT_MSG_MAX         64
+
+typedef struct { uint8_t data[CAT_MSG_MAX]; uint16_t len; } cat_msg_t;
+
+static uint8_t  spp_service_buffer[150];
+static uint16_t spp_cid = 0;
+static QueueHandle_t        s_cat_queue;
+static btstack_timer_source_t s_cat_timer;
 const char hfp_hf_service_name[] = "HFP HF Demo";
 
 #ifdef HAVE_BTSTACK_STDIN
@@ -412,6 +427,65 @@ static void stdin_process(char c)
 }
 #endif
 
+// Called from cat_rx_task (FreeRTOS context) — pushes data into queue for BTstack timer
+static void cat_rx_cb(const uint8_t *data, uint16_t len)
+{
+    cat_msg_t msg;
+    uint16_t chunk = len > CAT_MSG_MAX ? CAT_MSG_MAX : len;
+    memcpy(msg.data, data, chunk);
+    msg.len = chunk;
+    xQueueSend(s_cat_queue, &msg, 0);
+}
+
+// BTstack timer (20 ms): drain CAT queue → rfcomm_send
+static void cat_poll_timer_handler(btstack_timer_source_t *ts)
+{
+    cat_msg_t msg;
+    if (spp_cid && xQueueReceive(s_cat_queue, &msg, 0) == pdTRUE) {
+        rfcomm_send(spp_cid, msg.data, msg.len);
+    }
+    btstack_run_loop_set_timer(ts, 20);
+    btstack_run_loop_add_timer(ts);
+}
+
+// SPP packet handler
+static void spp_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size)
+{
+    UNUSED(channel);
+    printf("SPP handler llamado: packet_type=0x%02x size=%u\n", packet_type, size);
+    switch (packet_type) {
+    case RFCOMM_DATA_PACKET:
+        // PC → transceiver: forward to UART2
+        cat_bridge_send(packet, size);
+        break;
+    case HCI_EVENT_PACKET:
+        switch (hci_event_packet_get_type(packet)) {
+        case RFCOMM_EVENT_INCOMING_CONNECTION:
+            {
+                uint16_t cid = rfcomm_event_incoming_connection_get_rfcomm_cid(packet);
+                printf("SPP incoming connection, aceptando CID=0x%04x\n", cid);
+                rfcomm_accept_connection(cid);
+            }
+            break;
+        case RFCOMM_EVENT_CHANNEL_OPENED:
+            if (rfcomm_event_channel_opened_get_status(packet) == ERROR_CODE_SUCCESS) {
+                spp_cid = rfcomm_event_channel_opened_get_rfcomm_cid(packet);
+                printf("SPP connected, CID=0x%04x\n", spp_cid);
+            }
+            break;
+        case RFCOMM_EVENT_CHANNEL_CLOSED:
+            printf("SPP disconnected\n");
+            spp_cid = 0;
+            break;
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *event, uint16_t event_size)
 {
     UNUSED(channel);
@@ -601,6 +675,21 @@ int btstack_main(int argc, const char *argv[])
     hfp_hf_create_sdp_record(hfp_service_buffer, 0x10001, rfcomm_channel_nr, hfp_hf_service_name, hf_supported_features, wide_band_speech);
     printf("SDP service record size: %lu\n", (unsigned long)de_get_len(hfp_service_buffer));
     sdp_register_service(hfp_service_buffer);
+
+    // SPP server for CAT radio control (channel 2)
+    rfcomm_register_service(spp_packet_handler, SPP_RFCOMM_CHANNEL, 0xffff);
+    memset(spp_service_buffer, 0, sizeof(spp_service_buffer));
+    spp_create_sdp_record(spp_service_buffer, 0x10002, SPP_RFCOMM_CHANNEL, "CAT Radio");
+    sdp_register_service(spp_service_buffer);
+
+    // CAT bridge (UART2 + PTT/COS GPIOs)
+    s_cat_queue = xQueueCreate(CAT_QUEUE_LEN, sizeof(cat_msg_t));
+    cat_bridge_init(cat_rx_cb);
+
+    // Periodic timer to forward transceiver data → SPP client
+    btstack_run_loop_set_timer_handler(&s_cat_timer, cat_poll_timer_handler);
+    btstack_run_loop_set_timer(&s_cat_timer, 20);
+    btstack_run_loop_add_timer(&s_cat_timer);
 
     // register for HCI events and SCO packets
     hci_event_callback_registration.callback = &packet_handler;

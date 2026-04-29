@@ -190,8 +190,6 @@ static void btstack_audio_esp32_wm8731_init(void){
 static btstack_data_source_t transport_data_source;
 static volatile _Atomic uint32_t isr_bytes_read = 0;
 static volatile _Atomic uint32_t isr_bytes_written = 0;
-static volatile _Atomic uint32_t isr_rx_callback_count = 0;
-static volatile _Atomic uint32_t isr_tx_callback_count = 0;
 
 static void btstack_audio_esp32_stream_start(void){
     if (btstack_audio_esp32_i2s_streaming) return;
@@ -234,7 +232,7 @@ static IRAM_ATTR bool i2s_rx_callback(i2s_chan_handle_t handle, i2s_event_data_t
 {
     size_t block_size = event->size;
     atomic_fetch_add_explicit(&isr_bytes_read, block_size, memory_order_relaxed);
-    atomic_fetch_add_explicit(&isr_rx_callback_count, 1, memory_order_relaxed);
+
     if( block_size > 0 ) {
         btstack_run_loop_poll_data_sources_from_irq();
         return true;
@@ -246,7 +244,7 @@ static IRAM_ATTR bool i2s_tx_callback(i2s_chan_handle_t handle, i2s_event_data_t
 {
     size_t block_size = event->size;
     atomic_fetch_add_explicit(&isr_bytes_written, block_size, memory_order_relaxed);
-    atomic_fetch_add_explicit(&isr_tx_callback_count, 1, memory_order_relaxed);
+
     if( block_size > 0 ) {
         btstack_run_loop_poll_data_sources_from_irq();
         return true;
@@ -261,15 +259,6 @@ static void i2s_data_process(btstack_data_source_t *ds, btstack_data_source_call
     size_t bytes_read = 0;
     uint32_t write_block_size = atomic_load_explicit(&isr_bytes_written, memory_order_relaxed);
     uint32_t read_block_size = atomic_load_explicit(&isr_bytes_read, memory_order_relaxed);
-
-    // Diagnostic: log callback counts every ~1s (100 × 10ms DMA = 1s)
-    static uint32_t diag_count = 0;
-    if (++diag_count % 100 == 0) {
-        ESP_LOGI(LOG_TAG, "DIAG: tx_cb=%u rx_cb=%u wr=%u rd=%u",
-                 (unsigned)atomic_load_explicit(&isr_tx_callback_count, memory_order_relaxed),
-                 (unsigned)atomic_load_explicit(&isr_rx_callback_count, memory_order_relaxed),
-                 (unsigned)write_block_size, (unsigned)read_block_size);
-    }
 
     switch (callback_type){
         case DATA_SOURCE_CALLBACK_POLL: {
@@ -297,12 +286,6 @@ static void i2s_data_process(btstack_data_source_t *ds, btstack_data_source_call
             if( num_samples > 0 ) {
                 esp_err_t ret = i2s_channel_read(rx_handle, btstack_audio_esp32_buffer, read_block_size, &bytes_read, pdMS_TO_TICKS(2) );
                 if( ret == ESP_OK ) {
-                    // Diagnostic: log RX sample values every ~1s
-                    if (diag_count % 100 == 0) {
-                        int16_t *b = (int16_t *)btstack_audio_esp32_buffer;
-                        ESP_LOGI(LOG_TAG, "RX ok: rd=%u L[0]=%d R[0]=%d L[1]=%d R[1]=%d",
-                                 (unsigned)bytes_read, b[0], b[1], b[2], b[3]);
-                    }
                     // extract mono from stereo - use slot index 0 (even samples)
                     // In Philips I2S the WM8731 RINPUT maps to buffer[2*i], not [2*i+1]
                     int16_t * buffer16 = (int16_t *)btstack_audio_esp32_buffer;
@@ -313,7 +296,7 @@ static void i2s_data_process(btstack_data_source_t *ds, btstack_data_source_call
                     }
                     (*btstack_audio_esp32_source_recording_callback)((int16_t *) btstack_audio_esp32_buffer, num_samples, NULL);
                 } else if( ret == ESP_ERR_TIMEOUT ) {
-                    ESP_LOGW(LOG_TAG, "audio input buffer overrun rd=%u got=%u", (unsigned)read_block_size, (unsigned)bytes_read);
+                    ESP_LOGW(LOG_TAG, "audio input buffer overrun");
                 }
                 atomic_fetch_sub_explicit(&isr_bytes_read, read_block_size, memory_order_relaxed);
             }
