@@ -1,0 +1,50 @@
+menu "Radio Interface Configuration"
+
+    config RADIO_BT_NAME
+        string "Bluetooth device name"
+        default "ESP32 Radio HF"
+        help
+            Name announced over Bluetooth (GAP local name) and used as the
+            HFP Hands-Free service name in the SDP record.
+
+    config RADIO_AG_ADDR
+        string "Audio Gateway address for the test console"
+        default "22:22:4F:BD:72:A0"
+        help
+            Bluetooth address (AA:BB:CC:DD:EE:FF) of the phone or PC that the
+            serial test console connects to with the 'a' key. Only used for
+            outgoing connections started from the console; incoming
+            connections from any device are accepted regardless.
+
+    config RADIO_SPP_CHANNEL
+        int "RFCOMM channel of the SPP control service"
+        range 2 30
+        default 2
+        help
+            Channel 1 is used by HFP.
+
+    config RADIO_SPP_SERVICE_NAME
+        string "SPP service name"
+        default "CAT Radio"
+
+    choice RADIO_UART0_MODE
+        prompt "UART0 (USB) mode"
+        default RADIO_UART0_CONSOLE
+        help
+            UART0 is the USB serial port of the board (CH340G). It can be
+            either the debug console or a wired control link that speaks the
+            same protocol as the Bluetooth SPP service. Both cannot coexist
+            on the same UART.
+
+        config RADIO_UART0_CONSOLE
+            bool "Console: logs, printf and the BTstack test console"
+        config RADIO_UART0_CAT
+            bool "CAT: wired host link with the control protocol (console muted)"
+    endchoice
+
+    config RADIO_HOST_SERIAL_BAUD
+        int "Baud rate of the wired host link"
+        depends on RADIO_UART0_CAT
+        default 115200
+
+endmenu

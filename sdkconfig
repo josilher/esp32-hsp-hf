@@ -388,6 +388,17 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# Radio Interface Configuration
+#
+CONFIG_RADIO_BT_NAME="ESP32 Radio HF"
+CONFIG_RADIO_AG_ADDR="22:22:4F:BD:72:A0"
+CONFIG_RADIO_SPP_CHANNEL=2
+CONFIG_RADIO_SPP_SERVICE_NAME="CAT Radio"
+CONFIG_RADIO_UART0_CONSOLE=y
+# CONFIG_RADIO_UART0_CAT is not set
+# end of Radio Interface Configuration
+
+#
 # Example Board Configuration
 #
 # CONFIG_ESP_LYRAT_V4_3_BOARD is not set
@@ -2161,6 +2172,29 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 #
 # CONFIG_BTSTACK_AUDIO is not set
 # end of BTstack Configuration
+
+#
+# CAT bridge (radio link)
+#
+CONFIG_CAT_UART_NUM=2
+CONFIG_CAT_TX_PIN=32
+CONFIG_CAT_RX_PIN=34
+CONFIG_CAT_BAUD_RATE=9600
+CONFIG_CAT_FRAMING_RAW=y
+# CONFIG_CAT_FRAMING_LINE is not set
+# CONFIG_CAT_FRAMING_TERMINATOR is not set
+CONFIG_CAT_IDLE_TIMEOUT_MS=20
+CONFIG_CAT_PTT_PIN=33
+CONFIG_CAT_PTT_ACTIVE_LOW=y
+CONFIG_CAT_COS_PIN=39
+CONFIG_CAT_COS_ACTIVE_LOW=y
+# end of CAT bridge (radio link)
+
+#
+# Host link (PC / phone control protocol)
+#
+CONFIG_HOST_LINK_IDLE_FLUSH_MS=30
+# end of Host link (PC / phone control protocol)
 
 #
 # I2C

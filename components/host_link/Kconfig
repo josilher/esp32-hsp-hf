@@ -1,0 +1,13 @@
+menu "Host link (PC / phone control protocol)"
+
+    config HOST_LINK_IDLE_FLUSH_MS
+        int "Idle gap after which undelimited binary data is forwarded to the radio (ms)"
+        default 30
+        help
+            Data from the host that contains no line delimiter is forwarded
+            to the radio after this many milliseconds of silence, but only if
+            it contains non-printable bytes (a binary CAT protocol). Printable
+            text keeps waiting for CR/LF so that typing in a terminal works.
+            0 disables the idle flush.
+
+endmenu

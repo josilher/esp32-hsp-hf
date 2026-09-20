@@ -155,6 +155,7 @@ esp_err_t wm8731_init(i2c_dev_t *dev)
 
     /* 10. Activar interfaz digital */
     res |= wm_write_reg_cached(dev, WM8731_REG_ACTIVATE, 0x001);
+    vTaskDelay(pdMS_TO_TICKS(10));
 
     /* 11. Desactivar mute del DAC */
     uint16_t digpath = wm_read_cached(WM8731_REG_DIGPATH);

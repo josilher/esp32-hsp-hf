@@ -1,0 +1,68 @@
+menu "CAT bridge (radio link)"
+
+    config CAT_UART_NUM
+        int "UART number used for CAT"
+        range 1 2
+        default 2
+        help
+            UART0 is reserved for the USB console / wired host link.
+
+    config CAT_TX_PIN
+        int "CAT TX GPIO (ESP32 -> radio)"
+        default 32
+
+    config CAT_RX_PIN
+        int "CAT RX GPIO (radio -> ESP32)"
+        default 34
+
+    config CAT_BAUD_RATE
+        int "CAT baud rate"
+        default 9600
+
+    choice CAT_FRAMING
+        prompt "Framing of data received from the radio"
+        default CAT_FRAMING_RAW
+        help
+            How the bytes coming from the radio are grouped before being
+            forwarded to the host. It does not alter the bytes themselves.
+
+        config CAT_FRAMING_RAW
+            bool "Raw: group by idle gap (binary protocols, transparent)"
+        config CAT_FRAMING_LINE
+            bool "Text lines terminated by CR or LF"
+        config CAT_FRAMING_TERMINATOR
+            bool "Terminated by a specific byte (';' Kenwood/Elecraft/Yaesu, 0xFD Icom CI-V)"
+    endchoice
+
+    config CAT_TERMINATOR
+        hex "Terminator byte"
+        depends on CAT_FRAMING_TERMINATOR
+        default 0x3B
+        help
+            0x3B is ';' (Kenwood, Elecraft, modern Yaesu). 0xFD is the Icom CI-V end byte.
+
+    config CAT_IDLE_TIMEOUT_MS
+        int "Idle gap that closes a raw frame (ms)"
+        depends on CAT_FRAMING_RAW
+        default 20
+
+    config CAT_PTT_PIN
+        int "PTT output GPIO"
+        default 33
+
+    config CAT_PTT_ACTIVE_LOW
+        bool "PTT is active low (optocoupler LED to GND)"
+        default y
+
+    config CAT_COS_PIN
+        int "COS / squelch input GPIO"
+        default 39
+        help
+            GPIO39 (SENSOR_VN) is input-only and has no internal pull-up;
+            the board provides an external one.
+
+    config CAT_COS_ACTIVE_LOW
+        bool "COS is active low"
+        default y
+
+endmenu
