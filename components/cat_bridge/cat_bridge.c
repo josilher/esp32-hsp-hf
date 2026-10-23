@@ -59,6 +59,9 @@ esp_err_t cat_bridge_init(cat_rx_cb_t rx_cb)
     cfg.rx_pin    = CONFIG_CAT_RX_PIN;
     cfg.baud_rate = CONFIG_CAT_BAUD_RATE;
     cfg.name      = "cat";
+#if CONFIG_SERIAL_PORT_CAT_ON_CORE1 && !CONFIG_FREERTOS_UNICORE
+    cfg.task_core = 1;
+#endif
 #if CONFIG_CAT_FRAMING_LINE
     cfg.framing = SERIAL_FRAMING_LINE;
 #elif CONFIG_CAT_FRAMING_TERMINATOR
@@ -96,6 +99,11 @@ esp_err_t cat_bridge_set_baud(int baud_rate)
 int cat_bridge_get_baud(void)
 {
     return serial_port_get_baud(s_port);
+}
+
+int cat_bridge_get_core(void)
+{
+    return (int)serial_port_get_core(s_port);
 }
 
 void cat_bridge_set_ptt(bool active)

@@ -526,12 +526,29 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *event
                 printf("Phone number for voice tag: %s\n",
                        (const char *)hfp_subevent_number_for_voice_tag_get_number(event));
                 break;
-            case HFP_SUBEVENT_SPEAKER_VOLUME:
-                printf("Speaker volume: gain %u\n",
-                       hfp_subevent_speaker_volume_get_gain(event));
+            case HFP_SUBEVENT_SPEAKER_VOLUME: {
+                /* El AG (Windows) manda aqui la posicion de su deslizador de
+                 * volumen, en la escala de HFP: 0..15. BTstack declara el
+                 * callback set_volume del sink de audio pero NO lo invoca
+                 * nunca; aplicarlo es responsabilidad de la aplicacion. Sin
+                 * estas lineas el deslizador no tiene ningun efecto y el
+                 * codec se queda en el nivel fijo que puso wm8731_init().  */
+                uint8_t gain = hfp_subevent_speaker_volume_get_gain(event);
+                printf("Speaker volume: gain %u\n", gain);
+                const btstack_audio_sink_t *sink = btstack_audio_sink_get_instance();
+                if (sink != NULL && sink->set_volume != NULL) {
+                    /* HFP usa 0..15; el sink espera la escala 0..127.       */
+                    sink->set_volume((uint8_t)((gain * 127) / 15));
+                }
                 break;
+            }
             case HFP_SUBEVENT_MICROPHONE_VOLUME:
-                printf("Microphone volume: gain %u\n",
+                /* No se propaga al codec a proposito. El WM8731 solo tiene
+                 * ganancia variable en la ruta de LINE IN (registro LINVOL),
+                 * y esta placa entra por MICIN, cuya unica ganancia es el bit
+                 * MICBOOST, de dos posiciones. No hay por tanto nada que
+                 * ajustar en hardware con este valor.                       */
+                printf("Microphone volume: gain %u (sin efecto: MICIN no tiene ganancia variable)\n",
                        hfp_subevent_microphone_volume_get_gain(event));
                 break;
             case HFP_SUBEVENT_CALLING_LINE_IDENTIFICATION_NOTIFICATION:

@@ -31,6 +31,9 @@ extern "C" {
  */
 esp_err_t host_link_serial_init(uart_port_t uart_num, int baud_rate, bool mute_console);
 
+/** @brief Nucleo donde corre la tarea de recepcion (0 o 1), o -1 si el enlace no esta activo. */
+int host_link_serial_get_core(void);
+
 #ifdef __cplusplus
 }
 #endif

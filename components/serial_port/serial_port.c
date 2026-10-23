@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -210,11 +211,30 @@ esp_err_t serial_port_open(const serial_port_config_t *cfg, serial_frame_cb_t cb
     p->running = true;
     char task_name[configMAX_TASK_NAME_LEN];
     snprintf(task_name, sizeof(task_name), "%.*s_rx", (int)(sizeof(task_name) - 4), p->cfg.name);
-    if (xTaskCreate(rx_task, task_name, p->cfg.task_stack, p, p->cfg.task_priority, &p->task) != pdPASS) {
+
+    /* El core 1 esta apagado a nivel de reloj en un build unicore (no solo
+     * excluido del scheduler): pedirlo ahi no tiene efecto util y el kernel
+     * no lo degrada de forma predecible. Se decide en compilacion, nunca se
+     * confia en que el propio xTaskCreatePinnedToCore lo resuelva. */
+#if CONFIG_FREERTOS_UNICORE
+    BaseType_t core = tskNO_AFFINITY;
+    if (p->cfg.task_core != tskNO_AFFINITY) {
+        ESP_LOGW(TAG, "%s: afinidad de nucleo %d ignorada (build unicore)",
+                 p->cfg.name, (int)p->cfg.task_core);
+    }
+#else
+    BaseType_t core = p->cfg.task_core;
+#endif
+
+    if (xTaskCreatePinnedToCore(rx_task, task_name, p->cfg.task_stack, p, p->cfg.task_priority,
+                                &p->task, core) != pdPASS) {
         ESP_LOGE(TAG, "%s: no se pudo crear la tarea de recepcion", p->cfg.name);
         uart_driver_delete(p->cfg.uart_num);
         free_port(p);
         return ESP_ERR_NO_MEM;
+    }
+    if (core != tskNO_AFFINITY) {
+        ESP_LOGI(TAG, "%s: tarea de recepcion anclada al nucleo %d", p->cfg.name, (int)core);
     }
 
     ESP_LOGI(TAG, "%s: UART%d a %d baudios (TX=%d RX=%d), framing=%d",
@@ -289,4 +309,10 @@ const char *serial_port_get_name(const serial_port_t *p)
 uart_port_t serial_port_get_uart(const serial_port_t *p)
 {
     return p ? p->cfg.uart_num : UART_NUM_MAX;
+}
+
+BaseType_t serial_port_get_core(const serial_port_t *p)
+{
+    if (!p || !p->task) return -1;
+    return xTaskGetCoreID(p->task);
 }

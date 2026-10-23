@@ -47,4 +47,27 @@ menu "Radio Interface Configuration"
         depends on RADIO_UART0_CAT
         default 115200
 
+    config RADIO_AUDIO_CAPTURE_ONLY
+        bool "Diagnostic: capture-only audio (works around the swapped I2S data lines)"
+        default n
+        help
+            TEMPORARY DIAGNOSTIC OPTION, for the bluesp32 board only.
+
+            On that board the two I2S data nets reach the codec swapped: the
+            codec's DACDAT (an input) hangs off the net that goes to IO35,
+            which is input-only on the ESP32 and can never drive it, while the
+            codec's ADCDAT (an output) hangs off the net that goes to IO26,
+            which the driver uses as its output. The result is a constant tone
+            instead of playback, and two drivers fighting over IO26.
+
+            With this option enabled the I2S data input is moved to IO26, so
+            the ESP32 reads the codec's real ADC output, and the data output is
+            moved to IO23, which is unconnected on this board. That removes the
+            contention and makes the capture direction (microphone towards the
+            PC) work, so the diagnosis can be confirmed without reworking the
+            board. Playback stays broken: that half cannot be fixed in
+            software.
+
+            Leave this off for a board whose R12/R14 wiring has been corrected.
+
 endmenu

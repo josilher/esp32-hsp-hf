@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "sdkconfig.h"
 #include "esp_log.h"
 #include "esp_vfs.h"
 #include "serial_port.h"
@@ -106,6 +107,9 @@ esp_err_t host_link_serial_init(uart_port_t uart_num, int baud_rate, bool mute)
     cfg.idle_timeout_ms = 5;
     cfg.max_frame_len   = 128;
     cfg.name            = "host";
+#if CONFIG_SERIAL_PORT_HOST_SERIAL_ON_CORE1 && !CONFIG_FREERTOS_UNICORE
+    cfg.task_core = 1;
+#endif
 
     esp_err_t err = serial_port_open(&cfg, frame_cb, NULL, &s_port);
     if (err != ESP_OK) {
@@ -115,4 +119,9 @@ esp_err_t host_link_serial_init(uart_port_t uart_num, int baud_rate, bool mute)
 
     host_link_register(&s_link, &s_ops, NULL);
     return ESP_OK;
+}
+
+int host_link_serial_get_core(void)
+{
+    return (int)serial_port_get_core(s_port);
 }

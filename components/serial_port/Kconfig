@@ -1,0 +1,29 @@
+menu "Serial port task placement (advanced)"
+
+    config SERIAL_PORT_DUAL_CORE
+        bool "Enable dual-core task placement for UART receive tasks"
+        default n
+        help
+            Pins the UART receive tasks (CAT to the radio, wired host link) to
+            CPU1, isolating their jitter from BTstack's single-threaded run
+            loop and SCO audio timing on CPU0.
+
+            This option alone changes nothing: FREERTOS_NUMBER_OF_CORES /
+            FREERTOS_UNICORE are system-level FreeRTOS settings that this app
+            option cannot override. You must ALSO disable single-core mode
+            yourself via Component config -> FreeRTOS. See the README section
+            "Reparto de tareas entre nucleos" for the exact steps. If the
+            firmware is still built in unicore mode, this option's effect is
+            ignored at boot with a warning log; nothing breaks.
+
+    config SERIAL_PORT_CAT_ON_CORE1
+        bool "Pin the CAT (radio) UART task to core 1"
+        depends on SERIAL_PORT_DUAL_CORE
+        default y
+
+    config SERIAL_PORT_HOST_SERIAL_ON_CORE1
+        bool "Pin the wired host link (UART0) task to core 1"
+        depends on SERIAL_PORT_DUAL_CORE
+        default y
+
+endmenu

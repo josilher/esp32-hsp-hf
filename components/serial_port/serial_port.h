@@ -23,6 +23,7 @@
 #include "esp_err.h"
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +58,10 @@ typedef struct {
     size_t             tx_buf_size;     /**< 0 = escritura bloqueante hasta vaciar */
     UBaseType_t        task_priority;
     uint32_t           task_stack;
+    BaseType_t         task_core;        /**< tskNO_AFFINITY (por defecto) o 0/1.
+                                           *   Se ignora, con aviso por log, si el
+                                           *   firmware esta compilado en unicore
+                                           *   (CONFIG_FREERTOS_UNICORE). */
     const char        *name;            /**< Para logs y nombre de la tarea */
 } serial_port_config_t;
 
@@ -76,6 +81,7 @@ typedef struct {
     .tx_buf_size     = 1024,                    \
     .task_priority   = 5,                       \
     .task_stack      = 3072,                    \
+    .task_core       = tskNO_AFFINITY,          \
     .name            = "serial",                \
 }
 
@@ -119,6 +125,9 @@ int       serial_port_get_baud(const serial_port_t *port);
 void        serial_port_get_stats(const serial_port_t *port, serial_port_stats_t *out);
 const char *serial_port_get_name(const serial_port_t *port);
 uart_port_t serial_port_get_uart(const serial_port_t *port);
+
+/** @brief Nucleo donde corre la tarea de recepcion (0 o 1), o -1 si no hay tarea. */
+BaseType_t serial_port_get_core(const serial_port_t *port);
 
 #ifdef __cplusplus
 }

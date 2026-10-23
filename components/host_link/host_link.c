@@ -8,9 +8,11 @@
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 
 #include "cat_bridge.h"
+#include "host_link_serial.h"
 
 static const char *TAG = "host_link";
 
@@ -90,16 +92,18 @@ static void send_info(host_link_t *link)
     serial_port_stats_t st;
     cat_bridge_get_stats(&st);
 
-    char buf[320];
+    char buf[384];
     int n = snprintf(buf, sizeof(buf),
                      "INFO fw=%s cat_baud=%d ptt=%d cos=%d "
                      "cat_rx=%u cat_tx=%u cat_frames=%u cat_overruns=%u cat_dropped=%u "
-                     "radio_frames=%u queue_dropped=%u links=",
+                     "radio_frames=%u queue_dropped=%u "
+                     "cat_core=%d host_core=%d main_core=%d links=",
                      HOST_LINK_FW_VERSION, cat_bridge_get_baud(),
                      cat_bridge_get_ptt() ? 1 : 0, cat_bridge_get_cos() ? 1 : 0,
                      (unsigned)st.rx_bytes, (unsigned)st.tx_bytes, (unsigned)st.rx_frames,
                      (unsigned)st.overruns, (unsigned)st.dropped_frames,
-                     (unsigned)s_radio_frames, (unsigned)s_dropped_msgs);
+                     (unsigned)s_radio_frames, (unsigned)s_dropped_msgs,
+                     cat_bridge_get_core(), host_link_serial_get_core(), (int)xTaskGetCoreID(NULL));
 
     bool first = true;
     for (host_link_t *l = s_links; l && n > 0 && (size_t)n < sizeof(buf); l = l->next) {

@@ -396,6 +396,7 @@ CONFIG_RADIO_SPP_CHANNEL=2
 CONFIG_RADIO_SPP_SERVICE_NAME="CAT Radio"
 CONFIG_RADIO_UART0_CONSOLE=y
 # CONFIG_RADIO_UART0_CAT is not set
+# CONFIG_RADIO_AUDIO_CAPTURE_ONLY is not set
 # end of Radio Interface Configuration
 
 #
@@ -2201,6 +2202,12 @@ CONFIG_HOST_LINK_IDLE_FLUSH_MS=30
 #
 CONFIG_I2CDEV_TIMEOUT=1000
 # end of I2C
+
+#
+# Serial port task placement (advanced)
+#
+# CONFIG_SERIAL_PORT_DUAL_CORE is not set
+# end of Serial port task placement (advanced)
 # end of Component config
 
 # CONFIG_IDF_EXPERIMENTAL_FEATURES is not set

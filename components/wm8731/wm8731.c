@@ -112,20 +112,35 @@ esp_err_t wm8731_init(i2c_dev_t *dev)
                                 0x79 | WM8731_HPOUT_ZCEN | WM8731_HPOUT_BOTH);
 
     /* 4. Ruta analógica:
-     *    INSEL=0  → Line In (no micrófono)
+     *    INSEL=1  → entrada de MICRÓFONO (MICIN) como fuente del ADC
+     *    MUTEMIC=0 → sin mutear esa entrada
      *    DACSEL=1 → DAC conectado al mixer de salida
      *    BYPASS=0 → sin bypass analógico
-     *    MUTEMIC=1 → mic muteado (no se usa)                                */
+     *    MICBOOST=0 → sin los +20 dB de la etapa de microfono. Se activo en
+     *                 su momento porque no se conseguia captar voz, pero la
+     *                 causa real era el cableado del banco de pruebas. Con
+     *                 el cableado corregido el nivel es suficiente sin el
+     *                 boost, y dejarlo puesto solo acerca la entrada a la
+     *                 saturacion. Tampoco procede con una radio real, que
+     *                 entrega nivel de linea.
+     *
+     * En la placa bluesp32 el audio que llega de la radio entra por MICIN
+     * (pin 18, via R16/C15 y el transformador T2) y las patillas de LINE IN
+     * (19 y 20) estan SIN CONECTAR. Por eso hay que seleccionar la entrada
+     * de microfono: con INSEL=0 el ADC escucharia una entrada inexistente.
+     * El prototipo anterior, hecho a mano, si usaba LINE IN.                */
     res |= wm_write_reg_cached(dev, WM8731_REG_ANAPATH,
                                 WM8731_ANAPATH_DACSEL |
-                                WM8731_ANAPATH_MUTEMIC);
+                                WM8731_ANAPATH_INSEL);
 
     /* 5. Ruta digital:
-     *    ADCHPD=0  → HPF del ADC activo (elimina offset DC)
-     *    De-emphasis para 48 kHz
+     *    ADCHPD=0  → HPF del ADC activo (elimina offset DC del microfono)
+     *    DEEMP=00  → sin de-enfasis. El audio de HFP va a 8 o 16 kHz y no
+     *                lleva pre-enfasis, asi que aplicarlo (y encima con la
+     *                curva de 48 kHz) solo deformaria la reproduccion.
      *    DACMU=1   → DAC muteado hasta que todo esté listo                  */
     res |= wm_write_reg_cached(dev, WM8731_REG_DIGPATH,
-                                WM8731_DIGPATH_DEEMP_48K |
+                                WM8731_DIGPATH_DEEMP_NONE |
                                 WM8731_DIGPATH_DACMU);
 
     /* 6. Interfaz digital:
@@ -143,10 +158,14 @@ esp_err_t wm8731_init(i2c_dev_t *dev)
     res |= wm_write_reg_cached(dev, WM8731_REG_SAMPLING, 0x000);
 
     /* 8. Power Down: apagar solo lo que no usamos
-     *    Mic apagado, Osc apagado (usamos MCLK externo), CLKOUT apagado
-     *    Line In, ADC, DAC y salida: encendidos                             */
+     *    MICPD=0    → entrada de MICROFONO ENCENDIDA (es la que usa esta
+     *                 placa; si se apaga, el ADC solo capta ruido de fondo)
+     *    LINEINPD=1 → Line In apagado, en esta placa no esta conectado
+     *    OSCPD=1    → oscilador apagado, usamos el MCLK externo del ESP32
+     *    CLKOUTPD=1 → salida de reloj apagada
+     *    ADC, DAC y salida: encendidos                                      */
     res |= wm_write_reg_cached(dev, WM8731_REG_POWERDOWN,
-                                WM8731_PWR_MICPD    |
+                                WM8731_PWR_LINEINPD |
                                 WM8731_PWR_OSCPD    |
                                 WM8731_PWR_CLKOUTPD);
 
@@ -194,14 +213,20 @@ esp_err_t wm8731_set_input_volume(i2c_dev_t *dev, float volume)
  *
  * HPVOL [6:0]: 0x30=silencio(-73 dB)  …  0x79=0 dB  …  0x7F=+6 dB
  * Valores ≤ 0x2F también producen silencio.
- * Mapeamos 0%–100% → 0x30–0x7F  (79 pasos audibles)
+ * Mapeamos 0%–100% → 0x30–0x79  (73 pasos audibles)
+ *
+ * El tope es 0 dB y no el +6 dB que admite el registro: 0 dB es el nivel
+ * fijo con el que se valido la reproduccion en la placa, de modo que el
+ * 100% suena exactamente igual que antes de que el volumen fuera
+ * regulable, y los +6 dB de margen quedan sin exponer para no acercar la
+ * salida al recorte.
  * ───────────────────────────────────────────────────────────────────────── */
 esp_err_t wm8731_set_output_volume(i2c_dev_t *dev, float volume)
 {
     if (volume < 0.0f)   volume = 0.0f;
     if (volume > 100.0f) volume = 100.0f;
 
-    uint8_t vol = (uint8_t)(0x30 + (uint8_t)((volume / 100.0f) * (0x7F - 0x30)));
+    uint8_t vol = (uint8_t)(0x30 + (uint8_t)((volume / 100.0f) * (0x79 - 0x30)));
     ESP_LOGI(TAG, "Output volume: %.1f%% → reg=0x%02x", volume, vol);
 
     return wm_write_reg_cached(dev, WM8731_REG_LHPOUT,

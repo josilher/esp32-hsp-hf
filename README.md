@@ -45,7 +45,7 @@ enlace que envió el comando; lo que la radio emite por su cuenta se difunde a t
 | `PTT?` | `PTT=1` / `PTT=0` | Estado del PTT |
 | `COS?` | `COS=1` / `COS=0` | Estado de la detección de portadora |
 | `BAUD=9600` | `OK` / `ERR` | Cambia la velocidad del enlace CAT en caliente |
-| `INFO` | `INFO fw=... links=spp:1,serial:1 ...` | Versión, enlaces y estadísticas del enlace CAT |
+| `INFO` | `INFO fw=... cat_core=.. host_core=.. main_core=.. links=spp:1,serial:1 ...` | Versión, núcleo de cada tarea, enlaces y estadísticas del enlace CAT |
 | cualquier otra línea | lo que devuelva la radio | Se reenvía a la radio con su delimitador (comandos CAT) |
 
 Detalles del reenvío a la radio:
@@ -59,7 +59,7 @@ Detalles del reenvío a la radio:
 
 - `components/serial_port/` — **librería de puerto serie** genérica: una instancia por UART, tarea de
   recepción propia, ensamblado de tramas por línea, por byte terminador o por silencio, escritura con
-  mutex y estadísticas. No sabe nada de radio ni Bluetooth.
+  mutex, estadísticas y anclaje opcional de la tarea a un núcleo. No sabe nada de radio ni Bluetooth.
 - `components/cat_bridge/` — enlace físico con la radio: una instancia de serial_port (UART2) más PTT
   y COS. Configurable en menuconfig.
 - `components/host_link/` — capa común de control: registro de enlaces, buffer de línea por enlace,
@@ -126,6 +126,51 @@ delimitador.
    RTS/DTR). El Bluetooth sigue funcionando a la vez.
 
 Para volver a ver los logs, recompilar con *UART0 mode = Console*.
+
+## Reparto de tareas entre núcleos (opcional, experimental)
+
+El ESP32 tiene dos núcleos, pero el proyecto compila hoy en modo de un solo núcleo
+(`CONFIG_FREERTOS_UNICORE=y`), heredado del ejemplo original de atomic14. Existe la posibilidad de
+anclar al segundo núcleo las dos tareas que leen las UART (la de `cat_bridge` hacia la radio y la de
+`host_link_serial` hacia el PC por cable), para aislarlas del hilo de BTstack.
+
+**Qué gana con esto y qué no.** El beneficio no es velocidad: el enlace serie va limitado por baudios,
+no por CPU. Es aislamiento de *jitter*: hoy esas dos tareas comparten núcleo con el hilo de BTstack, así
+que un pico de trabajo en ellas puede robarle tiempo de CPU justo cuando toca enviar un paquete de audio
+SCO. Moviéndolas a otro núcleo, ese trabajo deja de competir con el timing del audio.
+
+**Qué queda fuera, siempre.** El hilo de BTstack (`app_main`, el run loop), cualquier llamada a su API
+(`hci_*`, `rfcomm_*`, `sdp_*`, `hfp_*`) y la codificación/decodificación de audio (mSBC, CVSD en
+`sco_demo_util.c`) permanecen en el núcleo 0 sin excepción. BTstack exige que toda su API se llame desde
+un único hilo lógico, y el envío de los paquetes SCO usa funciones de HCI que no son seguras entre
+hilos: intentar moverlas sería un cambio de mucho riesgo para un beneficio de CPU muy pequeño (los
+frames de mSBC/CVSD son de unos 60 bytes cada 7,5 ms).
+
+**Hacen falta dos interruptores independientes, en este orden:**
+
+1. **Sistema (obligatorio primero):** `idf.py menuconfig` → `Component config` → `FreeRTOS` → desactivar
+   *"Run FreeRTOS only on first core"*. Esto reactiva el núcleo 1 a nivel de hardware (con
+   `CONFIG_FREERTOS_UNICORE=y` el núcleo 1 tiene el reloj apagado desde el arranque, no solo está fuera
+   del planificador). **Es el único cambio de esta lista sin verificar en hardware con audio HFP real**;
+   `sdkconfig.defaults` se deja deliberadamente en modo unicore hasta que se compruebe en la placa.
+2. **Aplicación:** `idf.py menuconfig` → `Serial port task placement (advanced)` → activar
+   `SERIAL_PORT_DUAL_CORE` y elegir qué enlaces van a core 1 (por defecto, los dos si se activa).
+
+Si solo se activa el paso 2 sin el 1, no pasa nada malo: el firmware detecta en compilación que sigue en
+modo de un solo núcleo, ignora la afinidad pedida y lo avisa por log en el arranque. Pedir el núcleo 1
+directamente al planificador de FreeRTOS estando en modo unicore haría abortar el firmware, así que el
+código nunca llega a intentarlo en ese caso.
+
+| `FREERTOS_UNICORE` | `SERIAL_PORT_DUAL_CORE` | Resultado |
+|---|---|---|
+| activado (por defecto) | no | Comportamiento actual, sin cambios. |
+| activado | sí | Aviso en el log de arranque, tareas siguen sin anclar. Configuración inconsistente pero segura. |
+| desactivado | no | Sistema en dual-core pero sin usarlo: BTstack sigue en core 0, las tareas UART sin afinidad explícita. |
+| desactivado | sí | Estado buscado: BTstack en core 0, tareas UART en core 1. |
+
+**Cómo comprobarlo.** El comando `INFO` (ver tabla del protocolo) incluye `cat_core`, `host_core` y
+`main_core`. Con el reparto activo deben valer `1`, `1` y `0` respectivamente; `main_core` sirve de
+control de que el hilo de BTstack nunca se movió.
 
 ## Consola de pruebas (solo en modo Console)
 

@@ -104,12 +104,33 @@ static bool      btstack_audio_esp32_wm8731_initialized;
 #define BTSTACK_AUDIO_I2S_IN   GPIO_NUM_35
 #define HEADPHONE_DETECT       GPIO_NUM_19
 #elif CONFIG_IDF_TARGET_ESP32
-// Generic ESP32
+// Generic ESP32 / placa bluesp32 (WM8731)
+//
+// IO35 es de SOLO ENTRADA en el ESP32 (como IO34..IO39): no tiene driver de
+// salida, asi que la salida de datos I2S tiene que ir por IO26 y la entrada
+// por IO35. Esta es la unica asignacion electricamente posible, y coincide
+// con el montaje con el que se verifico el audio en 2026-04.
+//
+// OJO: en hardware/bluesp32.kicad_pcb las dos redes de datos llegan
+// cruzadas al codec (DACDAT, que es entrada, cuelga de /ASDOUT -> IO35; y
+// ADCDAT, que es salida, cuelga de /DSDIN -> IO26). Eso es un error de la
+// placa que no se puede compensar por software: requiere cruzar esos dos
+// hilos en R12/R14. Ver docs/notas-avances.
 #define BTSTACK_AUDIO_I2S_MCLK GPIO_NUM_0
 #define BTSTACK_AUDIO_I2S_BCK  GPIO_NUM_5
 #define BTSTACK_AUDIO_I2S_WS   GPIO_NUM_25
+#if CONFIG_RADIO_AUDIO_CAPTURE_ONLY
+// Diagnostico temporal (ver RADIO_AUDIO_CAPTURE_ONLY en menuconfig): la
+// entrada de datos se mueve a IO26 para leer el ADCDAT real del codec, y la
+// salida a IO23, que esta sin conectar en esta placa. Asi desaparece la
+// contienda de drivers y la captura (microfono -> PC) funciona. La
+// reproduccion sigue sin funcionar: eso necesita cruzar R12/R14.
+#define BTSTACK_AUDIO_I2S_OUT  GPIO_NUM_23
+#define BTSTACK_AUDIO_I2S_IN   GPIO_NUM_26
+#else
 #define BTSTACK_AUDIO_I2S_OUT  GPIO_NUM_26
 #define BTSTACK_AUDIO_I2S_IN   GPIO_NUM_35
+#endif
 #else
 #error "No I2S configuration, if you don't use BTstack I2S audio please disable BTSTACK_AUDIO in Components->BTstack Configuration"
 #endif

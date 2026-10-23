@@ -32,6 +32,9 @@ esp_err_t cat_bridge_send(const uint8_t *data, uint16_t len);
 esp_err_t cat_bridge_set_baud(int baud_rate);
 int       cat_bridge_get_baud(void);
 
+/** @brief Nucleo donde corre la tarea de recepcion CAT (0 o 1), o -1 si no hay tarea. */
+int cat_bridge_get_core(void);
+
 void cat_bridge_set_ptt(bool active);
 bool cat_bridge_get_ptt(void);
 bool cat_bridge_get_cos(void);

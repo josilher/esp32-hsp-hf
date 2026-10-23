@@ -7,8 +7,15 @@ sdkconfig.old
 __pycache__/
 *.pyc
 
+# Configuracion local de Claude Code (especifica de esta maquina)
+.claude/settings.local.json
+
 # Editores y sistema
 .cache/
 *.swp
 Thumbs.db
 desktop.ini
+
+# Nota: sdkconfig SI se versiona a proposito. sdkconfig.defaults bastaria
+# para regenerarlo, pero este fichero se perdio una vez y recuperarlo costo
+# lo suyo. Tenerlo en el historial es barato y evita repetir el disgusto.
