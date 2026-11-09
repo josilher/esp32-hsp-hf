@@ -50,6 +50,8 @@ typedef struct {
     uart_word_length_t data_bits;
     uart_parity_t      parity;
     uart_stop_bits_t   stop_bits;
+    bool               invert_tx;       /**< Invierte la polaridad de TXD en el periférico */
+    bool               invert_rx;       /**< Invierte la polaridad de RXD */
     serial_framing_t   framing;
     uint8_t            terminator;      /**< Solo SERIAL_FRAMING_TERMINATOR */
     uint32_t           idle_timeout_ms; /**< Solo SERIAL_FRAMING_RAW. 0 = solo por tamaño */
@@ -73,6 +75,8 @@ typedef struct {
     .data_bits       = UART_DATA_8_BITS,        \
     .parity          = UART_PARITY_DISABLE,     \
     .stop_bits       = UART_STOP_BITS_1,        \
+    .invert_tx       = false,                   \
+    .invert_rx       = false,                   \
     .framing         = SERIAL_FRAMING_LINE,     \
     .terminator      = '\n',                    \
     .idle_timeout_ms = 20,                      \

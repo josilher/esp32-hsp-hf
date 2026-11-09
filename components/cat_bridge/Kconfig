@@ -46,6 +46,29 @@ menu "CAT bridge (radio link)"
         depends on CAT_FRAMING_RAW
         default 20
 
+    config CAT_TX_INVERT
+        bool "Invert CAT TX polarity"
+        default y
+        help
+            The CAT transmit path is ESP32 TXD -> U10 optocoupler LED ->
+            phototransistor -> Q4, and Q4 is saturated at rest because R27
+            pulls its base to the isolated +5V. The result is that DE9 pin 8
+            idles LOW, which a UART receiver reads as a permanent break.
+            Inverting TXD in the peripheral puts the line back to idle HIGH.
+
+            Keep this enabled for the stock board. Disable it only for a radio
+            whose CAT input expects the inverted polarity, for instance a true
+            RS-232 input where 0 V already reads as a mark.
+
+    config CAT_RX_INVERT
+        bool "Invert CAT RX polarity"
+        default n
+        help
+            The receive path (D5, Q5 as a PNP, R28, U12) does not invert: a low
+            at DE9 pin 3 produces a low at the GPIO. Validated on 2026-11-09 by
+            injecting plain TTL text from a PL2303. Keep this disabled unless
+            the radio drives the line inverted.
+
     config CAT_PTT_PIN
         int "PTT output GPIO"
         default 33

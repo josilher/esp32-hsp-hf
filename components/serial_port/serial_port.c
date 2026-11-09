@@ -198,6 +198,17 @@ esp_err_t serial_port_open(const serial_port_config_t *cfg, serial_frame_cb_t cb
                            UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     }
     if (err == ESP_OK) {
+        /* Inversión de polaridad en el propio periférico. Hace falta cuando la
+         * línea pasa por un optoacoplador o un inversor y queda en reposo al
+         * revés de lo que espera la UART. Se aplica antes de instalar el driver
+         * para que el nivel de reposo sea el correcto desde el principio y el
+         * otro extremo no vea un break espurio. */
+        uint32_t inv = UART_SIGNAL_INV_DISABLE;
+        if (p->cfg.invert_tx) inv |= UART_SIGNAL_TXD_INV;
+        if (p->cfg.invert_rx) inv |= UART_SIGNAL_RXD_INV;
+        err = uart_set_line_inverse(p->cfg.uart_num, inv);
+    }
+    if (err == ESP_OK) {
         err = uart_driver_install(p->cfg.uart_num, (int)p->cfg.rx_buf_size, (int)p->cfg.tx_buf_size,
                                   UART_EVENT_QUEUE_LEN, &p->events, 0);
     }

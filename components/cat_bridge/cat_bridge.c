@@ -58,6 +58,12 @@ esp_err_t cat_bridge_init(cat_rx_cb_t rx_cb)
     cfg.tx_pin    = CONFIG_CAT_TX_PIN;
     cfg.rx_pin    = CONFIG_CAT_RX_PIN;
     cfg.baud_rate = CONFIG_CAT_BAUD_RATE;
+#if CONFIG_CAT_TX_INVERT
+    cfg.invert_tx = true;
+#endif
+#if CONFIG_CAT_RX_INVERT
+    cfg.invert_rx = true;
+#endif
     cfg.name      = "cat";
 #if CONFIG_SERIAL_PORT_CAT_ON_CORE1 && !CONFIG_FREERTOS_UNICORE
     cfg.task_core = 1;
@@ -78,8 +84,10 @@ esp_err_t cat_bridge_init(cat_rx_cb_t rx_cb)
         return err;
     }
 
-    ESP_LOGI(TAG, "listo: UART%d %d baudios TX=%d RX=%d, PTT=%d COS=%d",
-             CONFIG_CAT_UART_NUM, CONFIG_CAT_BAUD_RATE, CONFIG_CAT_TX_PIN, CONFIG_CAT_RX_PIN,
+    ESP_LOGI(TAG, "listo: UART%d %d baudios TX=%d%s RX=%d%s, PTT=%d COS=%d",
+             CONFIG_CAT_UART_NUM, CONFIG_CAT_BAUD_RATE,
+             CONFIG_CAT_TX_PIN, cfg.invert_tx ? " invertido" : "",
+             CONFIG_CAT_RX_PIN, cfg.invert_rx ? " invertido" : "",
              CONFIG_CAT_PTT_PIN, CONFIG_CAT_COS_PIN);
     return ESP_OK;
 }
