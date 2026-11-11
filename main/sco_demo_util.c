@@ -61,7 +61,7 @@ int num_samples_to_write;
 int num_audio_frames;
 unsigned int phase;
 
-static void playback_callback(int16_t *buffer, uint16_t num_samples)
+static void playback_callback(int16_t *buffer, uint16_t num_samples, const btstack_audio_context_t *timeinfo)
 {
 
     uint32_t prebuffer_bytes;
@@ -131,7 +131,7 @@ static void playback_callback(int16_t *buffer, uint16_t num_samples)
     }
 }
 
-static void recording_callback(const int16_t *buffer, uint16_t num_samples)
+static void recording_callback(const int16_t *buffer, uint16_t num_samples, const btstack_audio_context_t *timeinfo)
 {
     btstack_ring_buffer_write(&audio_input_ring_buffer, (uint8_t *)buffer, num_samples * 2);
 }
