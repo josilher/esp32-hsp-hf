@@ -15,6 +15,8 @@
  *   PING            -> PONG
  *   PTT=1 / PTT=0   -> OK            activa / suelta el PTT
  *   PTT?            -> PTT=0|1
+ *   AUTOPTT=1 / =0  -> OK            el PTT sigue (o no) a la llamada HFP
+ *   AUTOPTT?        -> AUTOPTT=0|1
  *   COS?            -> COS=0|1       estado del squelch / portadora
  *   BAUD=<n>        -> OK | ERR      cambia la velocidad del enlace CAT
  *   INFO            -> INFO ...      versión, enlaces y estadísticas

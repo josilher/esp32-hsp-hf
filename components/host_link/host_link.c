@@ -94,12 +94,13 @@ static void send_info(host_link_t *link)
 
     char buf[384];
     int n = snprintf(buf, sizeof(buf),
-                     "INFO fw=%s cat_baud=%d ptt=%d cos=%d "
+                     "INFO fw=%s cat_baud=%d ptt=%d autoptt=%d cos=%d "
                      "cat_rx=%u cat_tx=%u cat_frames=%u cat_overruns=%u cat_dropped=%u "
                      "radio_frames=%u queue_dropped=%u "
                      "cat_core=%d host_core=%d main_core=%d links=",
                      HOST_LINK_FW_VERSION, cat_bridge_get_baud(),
-                     cat_bridge_get_ptt() ? 1 : 0, cat_bridge_get_cos() ? 1 : 0,
+                     cat_bridge_get_ptt() ? 1 : 0, cat_bridge_get_ptt_follows_audio() ? 1 : 0,
+                     cat_bridge_get_cos() ? 1 : 0,
                      (unsigned)st.rx_bytes, (unsigned)st.tx_bytes, (unsigned)st.rx_frames,
                      (unsigned)st.overruns, (unsigned)st.dropped_frames,
                      (unsigned)s_radio_frames, (unsigned)s_dropped_msgs,
@@ -133,6 +134,14 @@ static bool handle_command(host_link_t *link, const uint8_t *line, size_t len)
         host_link_send_str(link, "OK\r\n");
     } else if (eq(line, len, "PTT?")) {
         host_link_send_str(link, cat_bridge_get_ptt() ? "PTT=1\r\n" : "PTT=0\r\n");
+    } else if (eq(line, len, "AUTOPTT=1")) {
+        cat_bridge_set_ptt_follows_audio(true);
+        host_link_send_str(link, "OK\r\n");
+    } else if (eq(line, len, "AUTOPTT=0")) {
+        cat_bridge_set_ptt_follows_audio(false);
+        host_link_send_str(link, "OK\r\n");
+    } else if (eq(line, len, "AUTOPTT?")) {
+        host_link_send_str(link, cat_bridge_get_ptt_follows_audio() ? "AUTOPTT=1\r\n" : "AUTOPTT=0\r\n");
     } else if (eq(line, len, "COS?")) {
         host_link_send_str(link, cat_bridge_get_cos() ? "COS=1\r\n" : "COS=0\r\n");
     } else if (starts(line, len, "BAUD=")) {

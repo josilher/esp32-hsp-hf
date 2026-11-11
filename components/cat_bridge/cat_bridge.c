@@ -9,6 +9,12 @@ static const char *TAG = "cat_bridge";
 static serial_port_t *s_port   = NULL;
 static cat_rx_cb_t    s_rx_cb  = NULL;
 static bool           s_ptt_on = false;
+static bool           s_audio_active = false;   /* hay canal de audio HFP abierto */
+#ifdef CONFIG_CAT_PTT_FOLLOWS_AUDIO
+static bool           s_ptt_follows_audio = true;
+#else
+static bool           s_ptt_follows_audio = false;
+#endif
 
 static void frame_cb(serial_port_t *port, const uint8_t *frame, size_t len, void *ctx)
 {
@@ -84,11 +90,11 @@ esp_err_t cat_bridge_init(cat_rx_cb_t rx_cb)
         return err;
     }
 
-    ESP_LOGI(TAG, "listo: UART%d %d baudios TX=%d%s RX=%d%s, PTT=%d COS=%d",
+    ESP_LOGI(TAG, "listo: UART%d %d baudios TX=%d%s RX=%d%s, PTT=%d COS=%d, PTT sigue al audio=%d",
              CONFIG_CAT_UART_NUM, CONFIG_CAT_BAUD_RATE,
              CONFIG_CAT_TX_PIN, cfg.invert_tx ? " invertido" : "",
              CONFIG_CAT_RX_PIN, cfg.invert_rx ? " invertido" : "",
-             CONFIG_CAT_PTT_PIN, CONFIG_CAT_COS_PIN);
+             CONFIG_CAT_PTT_PIN, CONFIG_CAT_COS_PIN, s_ptt_follows_audio ? 1 : 0);
     return ESP_OK;
 }
 
@@ -123,6 +129,31 @@ void cat_bridge_set_ptt(bool active)
 bool cat_bridge_get_ptt(void)
 {
     return s_ptt_on;
+}
+
+void cat_bridge_audio_activity(bool active)
+{
+    s_audio_active = active;
+    if (s_ptt_follows_audio) {
+        cat_bridge_set_ptt(active);
+    }
+}
+
+void cat_bridge_set_ptt_follows_audio(bool on)
+{
+    if (on == s_ptt_follows_audio) return;
+    s_ptt_follows_audio = on;
+    /* Solo se toca el PTT si hay audio en curso: al activar, se engancha al
+     * estado actual; al desactivar, se suelta lo que el audio habia activado.
+     * Sin audio en curso no se altera un PTT puesto a mano. */
+    if (s_audio_active) {
+        cat_bridge_set_ptt(on);
+    }
+}
+
+bool cat_bridge_get_ptt_follows_audio(void)
+{
+    return s_ptt_follows_audio;
 }
 
 bool cat_bridge_get_cos(void)

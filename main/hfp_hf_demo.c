@@ -26,6 +26,7 @@
 #include "host_link.h"
 #include "host_link_spp.h"
 #include "host_link_serial.h"
+#include "cat_bridge.h"
 
 #if CONFIG_RADIO_UART0_CAT
 // La UART0 es el enlace CAT por cable: no hay consola de teclas de BTstack.
@@ -457,6 +458,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *event
             case HFP_SUBEVENT_SERVICE_LEVEL_CONNECTION_RELEASED:
                 acl_handle = HCI_CON_HANDLE_INVALID;
                 printf("Service level connection released.\n\n");
+                cat_bridge_audio_activity(false);   /* por si cae el enlace sin soltar el SCO */
                 break;
             case HFP_SUBEVENT_AUDIO_CONNECTION_ESTABLISHED:
                 status = hfp_subevent_audio_connection_established_get_status(event);
@@ -483,12 +485,14 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *event
                     }
                     sco_demo_set_codec(negotiated_codec);
                     hci_request_sco_can_send_now_event();
+                    cat_bridge_audio_activity(true);
                 }
                 break;
             case HFP_SUBEVENT_AUDIO_CONNECTION_RELEASED:
                 sco_handle = HCI_CON_HANDLE_INVALID;
                 printf("Audio connection released\n");
                 sco_demo_close();
+                cat_bridge_audio_activity(false);
                 break;
             case HFP_SUBEVENT_COMPLETE:
                 status = hfp_subevent_complete_get_status(event);

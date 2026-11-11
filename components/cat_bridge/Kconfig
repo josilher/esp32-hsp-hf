@@ -77,6 +77,22 @@ menu "CAT bridge (radio link)"
         bool "PTT is active low (optocoupler LED to GND)"
         default y
 
+    config CAT_PTT_FOLLOWS_AUDIO
+        bool "PTT follows the HFP audio link (auto-PTT)"
+        default n
+        help
+            Key the transceiver whenever the HFP audio (SCO) link is open and
+            release it when the link closes, in addition to the explicit
+            PTT=1 / PTT=0 commands.
+
+            Leave this off when the PC software keys the radio itself over
+            CAT (WSJT-X, fldigi, rigctl...): with it on, the radio would be
+            transmitting for the whole duration of the audio link. Turn it
+            on for a plain voice link where "call open" means "transmit".
+
+            It can be changed at run time with AUTOPTT=1 / AUTOPTT=0 over the
+            control link; this option only sets the value at boot.
+
     config CAT_COS_PIN
         int "COS / squelch input GPIO"
         default 39

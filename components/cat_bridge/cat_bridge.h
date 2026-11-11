@@ -39,6 +39,23 @@ void cat_bridge_set_ptt(bool active);
 bool cat_bridge_get_ptt(void);
 bool cat_bridge_get_cos(void);
 
+/**
+ * @brief Notifica que el canal de audio HFP se ha abierto o cerrado.
+ *
+ * Si el PTT esta configurado para seguir al audio, lo activa o lo suelta.
+ * Lo llama la aplicacion desde los eventos de conexion de audio de HFP.
+ */
+void cat_bridge_audio_activity(bool active);
+
+/**
+ * @brief Hace que el PTT siga la actividad de la llamada HFP (o deja de hacerlo).
+ *
+ * Valor inicial: CONFIG_CAT_PTT_FOLLOWS_AUDIO. Los comandos PTT=1/0 explicitos
+ * siguen funcionando siempre; esto solo añade la activacion automatica.
+ */
+void cat_bridge_set_ptt_follows_audio(bool on);
+bool cat_bridge_get_ptt_follows_audio(void);
+
 void cat_bridge_get_stats(serial_port_stats_t *out);
 
 #ifdef __cplusplus
