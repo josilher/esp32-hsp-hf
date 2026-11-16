@@ -152,9 +152,14 @@ esp_err_t wm8731_init(i2c_dev_t *dev)
                                 (WM8731_FORMAT_I2S & 0x03) |
                                 ((WM8731_BITS_16 & 0x03) << 2));
 
-    /* 7. Sampling: 48 kHz en Normal mode (no USB)
+    /* 7. Sampling: Normal mode (no USB), fs = MCLK/256
      *    USB/NORM=0, BOSR=0, SR=0000, CLKIDIV2=0, CLKODIV2=0
-     *    → con MCLK=12.288 MHz y SR=0000: fs = 12288000/256 = 48000 Hz     */
+     *    La hoja de datos llama a este modo "48 kHz" porque supone
+     *    MCLK = 12.288 MHz. Aqui el MCLK lo genera el ESP32 como 256*fs
+     *    (I2S_MCLK_MULTIPLE_256 en btstack_audio_esp32_v5.c), de modo que el
+     *    codec trabaja a la frecuencia del canal de voz: 16 kHz con mSBC
+     *    (MCLK 4.096 MHz) y 8 kHz con CVSD (MCLK 2.048 MHz). No hay
+     *    conversion de frecuencia en el firmware.                          */
     res |= wm_write_reg_cached(dev, WM8731_REG_SAMPLING, 0x000);
 
     /* 8. Power Down: apagar solo lo que no usamos
