@@ -10,6 +10,17 @@ __pycache__/
 # Configuracion local de Claude Code (especifica de esta maquina)
 .claude/settings.local.json
 
+# Documentos de referencia de la universidad (no son del proyecto)
+docs/Propuesta.pdf
+docs/Reglamento_TFGM_ETSI.pdf
+docs/TFG.pdf
+docs/TFG_Antonio_Jesus_Ramirez_Romero.pdf
+
+# Libreria i2cdev: version adaptada por el tutor (esp-idf-lib, MIT, portada al
+# driver I2C maestro de ESP-IDF 5). Pertenece a su repositorio de trabajo y no
+# se publica aqui; ver "Dependencia no incluida" en el README.
+components/i2cdev/
+
 # Editores y sistema
 .cache/
 *.swp

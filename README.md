@@ -68,7 +68,8 @@ Detalles del reenvío a la radio:
   - `host_link_serial.c` — transporte por cable sobre serial_port, con silenciado de la consola.
 - `main/hfp_hf_demo.c` — perfil HFP y arranque de los enlaces.
 - `main/sco_demo_util.c` — codificación/decodificación SCO (mSBC, CVSD) y buffers de audio.
-- `components/wm8731/`, `components/i2cdev/` — driver I2C del códec.
+- `components/wm8731/` — driver I2C del códec. Usa `i2cdev`, que no se incluye en el repositorio
+  (ver *Dependencia no incluida*).
 - `components/btstack/` — port de BTstack para ESP32. `btstack_audio_esp32_v5.c` está modificado para
   inicializar el WM8731 y tomar el canal correcto del buffer I2S.
 - `components/btstack_config/` — `btstack_config.h` del proyecto.
@@ -77,6 +78,19 @@ Detalles del reenvío a la radio:
 ## Compilación
 
 Requiere ESP-IDF 5.3.x (probado con 5.3.4) y target `esp32`.
+
+### Dependencia no incluida: `i2cdev`
+
+`wm8731` y el port de BTstack dependen del componente `components/i2cdev/`, que **no está en este
+repositorio**. Es la librería `i2cdev` de [esp-idf-lib](https://github.com/esp-idf-lib) (Ruslan V. Uss,
+licencia MIT) en una versión adaptada por el tutor del proyecto al driver I2C maestro de ESP-IDF 5
+(`driver/i2c_master.h`). Esa adaptación forma parte de su repositorio de trabajo, por lo que no se
+publica aquí.
+
+Para compilar hay que copiar esa versión en `components/i2cdev/` (ficheros `i2cdev.c`, `i2cdev.h`,
+`Kconfig`, `CMakeLists.txt` y `LICENSE`). La interfaz que usa este proyecto es `i2cdev_init()`,
+`i2c_setup_device()`, `i2c_dev_write_reg()`, `i2c_dev_create_mutex()`, `i2c_dev_delete_mutex()` y las
+macros `I2C_DEV_TAKE_MUTEX` / `I2C_DEV_GIVE_MUTEX`.
 
 ```
 idf.py set-target esp32
