@@ -2,7 +2,8 @@
  * wm8731.h
  *
  * Driver para el códec de audio WM8731S (Wolfson/Cirrus Logic)
- * Basado en comunicación I2C con la librería i2cdev de ESP-IDF-LIB
+ * Basado en comunicación I2C con i2cdev (esp-idf-lib, adaptada al driver
+ * I2C maestro de ESP-IDF 5)
  *
  * Configuración hardware:
  *   WM8731S        ESP32
@@ -11,13 +12,18 @@
  *   ADCLRC    →    IO25  (LRCLK compartido ADC+DAC)
  *   DACLRC    →    IO25  (LRCLK compartido ADC+DAC)
  *   BCLK      →    IO5   (Bit Clock, generado por ESP32)
- *   MCLK      →    IO0   (Master Clock 12.288 MHz, generado por ESP32/APLL)
+ *   MCLK      →    IO0   (Master Clock = 256 × fs, generado por el ESP32)
  *   IIC_DAT   →    IO21  (I2C SDA)
  *   IIC_SCK   →    IO22  (I2C SCL)
  *
  * Modo:             WM8731S Slave  (ESP32 genera MCLK, BCLK y LRCLK)
- * Frecuencia:       48 kHz
- * MCLK requerido:   12.288 MHz  (= 48000 × 256), generado por APLL del ESP32
+ * Frecuencia:       la del canal de voz HFP, sin conversión en el firmware:
+ *                     16 kHz con mSBC (MCLK 4.096 MHz)
+ *                      8 kHz con CVSD (MCLK 2.048 MHz)
+ * MCLK:             256 × fs (I2S_MCLK_MULTIPLE_256 en btstack_audio_esp32_v5.c).
+ *                   El registro de muestreo va en modo normal (SR=0000, BOSR=0),
+ *                   en el que fs = MCLK/256. La hoja de datos llama a ese modo
+ *                   "48 kHz" porque supone MCLK = 12.288 MHz.
  *
  * Nota sobre registros WM8731:
  *   Registros de 9 bits de dato. Se transmiten en 2 bytes:
