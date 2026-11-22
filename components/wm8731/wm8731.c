@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "wm8731.h"
 #include <string.h>
+#include <inttypes.h>
 
 /* ─── Privado ────────────────────────────────────────────────────────────── */
 #define I2C_FREQ_HZ    100000
@@ -152,14 +153,13 @@ esp_err_t wm8731_init(i2c_dev_t *dev)
                                 (WM8731_FORMAT_I2S & 0x03) |
                                 ((WM8731_BITS_16 & 0x03) << 2));
 
-    /* 7. Sampling: Normal mode (no USB), fs = MCLK/256
+    /* 7. Sampling: valor provisional, Normal mode, fs = MCLK/256
      *    USB/NORM=0, BOSR=0, SR=0000, CLKIDIV2=0, CLKODIV2=0
-     *    La hoja de datos llama a este modo "48 kHz" porque supone
-     *    MCLK = 12.288 MHz. Aqui el MCLK lo genera el ESP32 como 256*fs
-     *    (I2S_MCLK_MULTIPLE_256 en btstack_audio_esp32_v5.c), de modo que el
-     *    codec trabaja a la frecuencia del canal de voz: 16 kHz con mSBC
-     *    (MCLK 4.096 MHz) y 8 kHz con CVSD (MCLK 2.048 MHz). No hay
-     *    conversion de frecuencia en el firmware.                          */
+     *    El valor definitivo depende del reloj que llega de verdad al
+     *    terminal MCLK y de la frecuencia del canal de voz, y lo fija
+     *    wm8731_set_clock() cada vez que se crea el canal I2S. En el ESP32
+     *    ese reloj no es 256*fs sino el del APLL (512*fs a 16 kHz y 768*fs
+     *    a 8 kHz): ver btstack_audio_esp32_v5.c.                           */
     res |= wm_write_reg_cached(dev, WM8731_REG_SAMPLING, 0x000);
 
     /* 8. Power Down: apagar solo lo que no usamos
@@ -237,6 +237,52 @@ esp_err_t wm8731_set_output_volume(i2c_dev_t *dev, float volume)
     return wm_write_reg_cached(dev, WM8731_REG_LHPOUT,
                                 (uint16_t)(vol | WM8731_HPOUT_ZCEN |
                                            WM8731_HPOUT_BOTH));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * wm8731_set_clock
+ *
+ * Programa el registro de muestreo (R8) para que el núcleo del códec trabaje
+ * a fs con el reloj que recibe en su terminal MCLK. En modo normal hay dos
+ * relaciones base: 256*fs (SR=0000) y 384*fs (SR=0110, la que la hoja llama
+ * "32 kHz" con MCLK = 12.288 MHz). CLKIDIV2 divide antes el MCLK entre 2,
+ * lo que cubre también 512*fs y 768*fs.
+ *
+ *   MCLK/fs   CLKIDIV2  SR     R8
+ *     256        0      0000   0x000
+ *     384        0      0110   0x018
+ *     512        1      0000   0x040   (ESP32 con APLL a 16 kHz)
+ *     768        1      0110   0x058   (ESP32 con APLL a  8 kHz)
+ *
+ * La hoja recomienda desactivar la interfaz digital (ACTIVE=0) mientras se
+ * cambia la frecuencia de muestreo, así que se hace en tres escrituras.
+ * ───────────────────────────────────────────────────────────────────────── */
+esp_err_t wm8731_set_clock(i2c_dev_t *dev, uint32_t mclk_hz, uint32_t fs_hz)
+{
+    if (fs_hz == 0) return ESP_ERR_INVALID_ARG;
+    uint32_t ratio = (mclk_hz + fs_hz / 2) / fs_hz;
+    uint16_t val;
+    switch (ratio) {
+        case 256: val = 0x000; break;
+        case 384: val = 0x018; break;
+        case 512: val = 0x040; break;
+        case 768: val = 0x058; break;
+        default:
+            ESP_LOGE(TAG, "MCLK %" PRIu32 " Hz no es 256/384/512/768 x fs (%" PRIu32 " Hz)",
+                     mclk_hz, fs_hz);
+            return ESP_ERR_NOT_SUPPORTED;
+    }
+
+    ESP_LOGI(TAG, "MCLK %" PRIu32 " Hz = %" PRIu32 " x fs (%" PRIu32 " Hz) -> R8 = 0x%03x",
+             mclk_hz, ratio, fs_hz, val);
+    if (val == wm_read_cached(WM8731_REG_SAMPLING)) return ESP_OK;
+
+    esp_err_t res = ESP_OK;
+    uint16_t active = wm_read_cached(WM8731_REG_ACTIVATE);
+    res |= wm_write_reg_cached(dev, WM8731_REG_ACTIVATE, 0x000);
+    res |= wm_write_reg_cached(dev, WM8731_REG_SAMPLING, val);
+    res |= wm_write_reg_cached(dev, WM8731_REG_ACTIVATE, active);
+    return res;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

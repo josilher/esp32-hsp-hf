@@ -205,6 +205,24 @@ static void btstack_audio_esp32_wm8731_init(void){
                                      WM8731_ADDR_CSB_LOW));
     ESP_ERROR_CHECK(wm8731_init(&wm8731_dev));
 }
+
+// Frecuencia que sale de verdad por el terminal MCLK (IO0).
+// En el ESP32 con fuente APLL, i2s_check_set_mclk() (esp_driver_i2s,
+// i2s_common.c) no saca por IO0 el MCLK dividido sino la propia señal del
+// APLL (CLKOUT_SIG_APLL), y i2s_set_get_apll_freq() fija
+//     APLL = mclk * div,  div = (int)(CLK_LL_APLL_MIN_HZ / mclk) + 1,  div >= 2
+// con CLK_LL_APLL_MIN_HZ = 5 303 031 Hz. Con mclk = 256*fs resulta
+// 8.192 MHz (512*fs) a 16 kHz y 6.144 MHz (768*fs) a 8 kHz.
+static uint32_t btstack_audio_esp32_mclk_pin_hz(uint32_t samplerate){
+    uint32_t mclk = samplerate * 256;
+#if SOC_I2S_SUPPORTS_APLL
+    uint32_t div = 5303031u / mclk + 1;
+    if (div < 2) div = 2;
+    return mclk * div;
+#else
+    return mclk;
+#endif
+}
 #endif
 
 // data source for integration with btstack run-loop
@@ -415,6 +433,11 @@ static void btstack_audio_esp32_init(void) {
 #endif
 #ifdef CONFIG_ESP_CUSTOM_BOARD
     btstack_audio_esp32_wm8731_init();
+    // el canal I2S se crea en cada llamada y la frecuencia puede cambiar
+    // (mSBC 16 kHz o CVSD 8 kHz): ajustar el códec al reloj de esta llamada
+    ESP_ERROR_CHECK(wm8731_set_clock(&wm8731_dev,
+        btstack_audio_esp32_mclk_pin_hz(btstack_audio_esp32_i2s_samplerate),
+        btstack_audio_esp32_i2s_samplerate));
 #endif
 
     btstack_audio_esp32_i2s_installed = true;

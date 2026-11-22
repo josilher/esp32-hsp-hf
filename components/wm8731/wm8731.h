@@ -12,18 +12,19 @@
  *   ADCLRC    →    IO25  (LRCLK compartido ADC+DAC)
  *   DACLRC    →    IO25  (LRCLK compartido ADC+DAC)
  *   BCLK      →    IO5   (Bit Clock, generado por ESP32)
- *   MCLK      →    IO0   (Master Clock = 256 × fs, generado por el ESP32)
+ *   MCLK      →    IO0   (reloj del APLL del ESP32: 512 × fs a 16 kHz)
  *   IIC_DAT   →    IO21  (I2C SDA)
  *   IIC_SCK   →    IO22  (I2C SCL)
  *
  * Modo:             WM8731S Slave  (ESP32 genera MCLK, BCLK y LRCLK)
  * Frecuencia:       la del canal de voz HFP, sin conversión en el firmware:
- *                     16 kHz con mSBC (MCLK 4.096 MHz)
- *                      8 kHz con CVSD (MCLK 2.048 MHz)
- * MCLK:             256 × fs (I2S_MCLK_MULTIPLE_256 en btstack_audio_esp32_v5.c).
- *                   El registro de muestreo va en modo normal (SR=0000, BOSR=0),
- *                   en el que fs = MCLK/256. La hoja de datos llama a ese modo
- *                   "48 kHz" porque supone MCLK = 12.288 MHz.
+ *                     16 kHz con mSBC (8.192 MHz en el terminal MCLK)
+ *                      8 kHz con CVSD (6.144 MHz en el terminal MCLK)
+ * MCLK:             el I2S se configura con I2S_MCLK_MULTIPLE_256, pero en el
+ *                   ESP32 con fuente APLL el terminal IO0 saca la señal del APLL,
+ *                   que vale el MCLK por un divisor entero de al menos 2
+ *                   (ver btstack_audio_esp32_v5.c). wm8731_set_clock() programa
+ *                   el registro de muestreo (CLKIDIV2 y SR) para esa relación.
  *
  * Nota sobre registros WM8731:
  *   Registros de 9 bits de dato. Se transmiten en 2 bytes:
@@ -154,6 +155,14 @@ esp_err_t wm8731_set_input_volume(i2c_dev_t *dev, float volume);
  * @param volume  0.0 = silencio  …  100.0 = +6 dB
  */
 esp_err_t wm8731_set_output_volume(i2c_dev_t *dev, float volume);
+
+/**
+ * @brief Ajusta el registro de muestreo al reloj real del terminal MCLK.
+ * @param mclk_hz  frecuencia que llega al terminal MCLK del códec
+ * @param fs_hz    frecuencia de muestreo del canal (8000 o 16000)
+ * @return ESP_ERR_NOT_SUPPORTED si MCLK no es 256, 384, 512 o 768 veces fs.
+ */
+esp_err_t wm8731_set_clock(i2c_dev_t *dev, uint32_t mclk_hz, uint32_t fs_hz);
 
 /** @brief Mute suave del DAC. */
 esp_err_t wm8731_set_mute(i2c_dev_t *dev, bool enable);
