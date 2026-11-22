@@ -81,7 +81,8 @@ esp_err_t wm8731_free_desc(i2c_dev_t *dev)
 /* ─────────────────────────────────────────────────────────────────────────
  * wm8731_init
  *
- * Secuencia de inicialización vía I2C para Line In → DAC → Line Out.
+ * Secuencia de inicialización vía I2C para Mic In → ADC → I2S y para
+ * I2S → DAC → Headphone Out, que es el encaminamiento de esta placa.
  *
  * Orden crítico según datasheet WM8731 (sección "Recommended Power-Up"):
  *   1. Reset
