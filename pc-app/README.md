@@ -63,6 +63,7 @@ igual que con unos auriculares manos libres corrientes. Esta aplicación solo ha
 
 ## Estado
 
-Compilado y probado sin un ESP32 real delante (compilación, construcción de la ventana, y el parseo de
-`INFO` contra el formato exacto que genera `host_link.c`). Falta la prueba de extremo a extremo con la
-placa, pendiente para cuando esté montado el prototipo final.
+Validada de extremo a extremo contra la placa: PING, INFO con su desglose en campos, PTT manual,
+lectura de COS, cambio de velocidad del enlace CAT y reenvio de comandos en bruto a la radio, tanto
+por el puerto serie Bluetooth como por el cable USB con la UART0 en modo CAT. Las respuestas son
+idénticas por los dos caminos.

@@ -7,19 +7,22 @@ sdkconfig.old
 __pycache__/
 *.pyc
 
-# Configuracion local de Claude Code (especifica de esta maquina)
-.claude/settings.local.json
+# Configuracion local del editor y de las herramientas (especifica de cada maquina)
+.vscode/
+.claude/
+.idea/
 
-# Documentos de referencia de la universidad (no son del proyecto)
-docs/Propuesta.pdf
-docs/Reglamento_TFGM_ETSI.pdf
-docs/TFG.pdf
-docs/TFG_Antonio_Jesus_Ramirez_Romero.pdf
-
-# Libreria i2cdev: version adaptada por el tutor (esp-idf-lib, MIT, portada al
-# driver I2C maestro de ESP-IDF 5). Pertenece a su repositorio de trabajo y no
-# se publica aqui; ver "Dependencia no incluida" en el README.
+# Libreria i2cdev: version adaptada al driver I2C maestro de ESP-IDF 5
+# (esp-idf-lib, MIT). No se publica aqui; ver "Dependencia no incluida" en el
+# README.
 components/i2cdev/
+
+# Material de la memoria del TFG: figuras, fotos, grabaciones de los ensayos,
+# ficheros de KiCad de la placa y scripts que generan las figuras. No forman
+# parte del firmware y se mantienen fuera del repositorio.
+docs/
+hardware/
+tools/
 
 # Editores y sistema
 .cache/
