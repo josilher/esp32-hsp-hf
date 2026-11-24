@@ -2201,10 +2201,10 @@ CONFIG_HOST_LINK_IDLE_FLUSH_MS=30
 # end of Host link (PC / phone control protocol)
 
 #
-# I2C
+# I2C device access (i2cdev)
 #
 CONFIG_I2CDEV_TIMEOUT=1000
-# end of I2C
+# end of I2C device access (i2cdev)
 
 #
 # Serial port task placement (advanced)

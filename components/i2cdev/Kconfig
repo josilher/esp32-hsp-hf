@@ -1,0 +1,11 @@
+menu "I2C device access (i2cdev)"
+
+config I2CDEV_TIMEOUT
+    int "Tiempo maximo de una transaccion I2C, en milisegundos"
+    default 1000
+    range 100 5000
+    help
+        Se aplica tanto a la espera del mutex del dispositivo como a la
+        transaccion en el bus.
+
+endmenu

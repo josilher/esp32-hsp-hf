@@ -102,7 +102,11 @@ Detalles del reenvío a la radio:
   despachador de comandos y cruce seguro desde las tareas de las UART al bucle de BTstack.
   - `host_link_spp.c` — transporte Bluetooth SPP, con cola de salida y envío en `CAN_SEND_NOW`.
   - `host_link_serial.c` — transporte por cable sobre `serial_port`, con silenciado de la consola.
-- `components/wm8731/` — driver I2C del códec. Usa `i2cdev`, que no se incluye (ver más abajo).
+- `components/wm8731/` — driver I2C del códec, con sombra de registros en RAM porque el WM8731 solo
+  admite escritura.
+- `components/i2cdev/` — acceso I2C seguro entre tareas sobre el driver I2C maestro de ESP-IDF 5.
+  Reproduce la interfaz de la librería `i2cdev` de esp-idf-lib, cuya implementación original está
+  escrita para el driver antiguo.
 - `components/btstack/` — port de BTstack para ESP32. `btstack_audio_esp32_v5.c` está modificado para
   inicializar el WM8731 y tomar el canal correcto del búfer I2S.
 - `components/btstack_config/` — el `btstack_config.h` del proyecto.
@@ -115,18 +119,7 @@ Detalles del reenvío a la radio:
 
 Requiere ESP-IDF 5.3.x (probado con 5.3.4) y el target `esp32`.
 
-### Dependencia no incluida: `i2cdev`
-
-`wm8731` y el port de BTstack dependen del componente `components/i2cdev/`, que **no está en este
-repositorio**. Es la librería `i2cdev` de [esp-idf-lib](https://github.com/esp-idf-lib) (Ruslan V.
-Uss, licencia MIT) en una versión adaptada al driver I2C maestro de ESP-IDF 5
-(`driver/i2c_master.h`). Esa adaptación pertenece a un repositorio de trabajo ajeno y no se publica
-aquí.
-
-Para compilar hay que copiar esa versión en `components/i2cdev/` (ficheros `i2cdev.c`, `i2cdev.h`,
-`Kconfig`, `CMakeLists.txt` y `LICENSE`). La interfaz que usa este proyecto es `i2cdev_init()`,
-`i2c_setup_device()`, `i2c_dev_write_reg()`, `i2c_dev_create_mutex()`, `i2c_dev_delete_mutex()` y las
-macros `I2C_DEV_TAKE_MUTEX` e `I2C_DEV_GIVE_MUTEX`.
+No hace falta ninguna dependencia externa: BTstack y el acceso I2C van dentro del repositorio.
 
 ```
 idf.py set-target esp32
@@ -242,5 +235,9 @@ Con el monitor serie abierto, cualquier tecla no reconocida muestra la ayuda. La
   su propia licencia. Es de tipo BSD de tres cláusulas **con una cuarta cláusula que limita el uso a
   fines no comerciales**; un producto comercial requiere una licencia de BlueKitchen. Esa licencia
   acompaña a cada fichero y prevalece sobre la de este repositorio en todo lo que afecta a BTstack.
+- `components/i2cdev/` reproduce la interfaz de la librería `i2cdev` de
+  [esp-idf-lib](https://github.com/esp-idf-lib/i2cdev), de Ruslan V. Uss, con licencia MIT. La
+  implementación sobre el driver I2C maestro de ESP-IDF 5 es propia; ver
+  [components/i2cdev/LICENSE](components/i2cdev/LICENSE).
 - El punto de partida fue el ejemplo `hfp_hf_demo` del port de BTstack para ESP32 y el fork de
   [atomic14](https://github.com/atomic14/esp32-hsp-hf).
